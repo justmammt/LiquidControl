@@ -6,7 +6,11 @@ type Props = {
   onChangeText?: any;
 };
 
-const TextInputStyled: React.FC<Props> = ({ placeholder, onChangeText }) => {
+const TextInputStyled: React.FC<Props> = ({
+  placeholder,
+  onChangeText,
+  ...props
+}) => {
   const colors = useColorScheme();
 
   return (
@@ -16,6 +20,7 @@ const TextInputStyled: React.FC<Props> = ({ placeholder, onChangeText }) => {
       }
     >
       <TextInput
+        {...props}
         onChangeText={onChangeText}
         className="text-zinc-950 dark:text-slate-300 py-3 px-6"
         placeholderTextColor={

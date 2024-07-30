@@ -11,19 +11,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import LoginPage from "@/components/login";
 import axios from "axios";
+import { subscribe } from "@/events";
+import * as LocalAuthentication from "expo-local-authentication";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const [logStatus, SetLogStatus] = useState(false);
-  const [canLoad, SetCanLoad] = useState(false);
+  const [canLoad, SetCanLoad] = useState(true);
 
   async function checkLogStatus() {
     const value = await AsyncStorage.getItem("isLoggedIn");
     const url = await AsyncStorage.getItem("url");
     const user = await SecureStore.getItemAsync("user");
-    const pass = await SecureStore.getItemAsync("pass", {
-      requireAuthentication: true,
-    });
+    const pass = await SecureStore.getItemAsync("pass");
     if (value && url != null && user != null && pass != null) {
       setTimeout(async () => {
         if (
@@ -40,9 +40,23 @@ export default function TabLayout() {
               }
             })
         ) {
-          SetLogStatus(true);
-          AsyncStorage.setItem("isLoggedIn", "true");
-          return true;
+          if (await LocalAuthentication.isEnrolledAsync()) {
+            LocalAuthentication.authenticateAsync().then(
+              (LocalAuthenticationResult) => {
+                if (LocalAuthenticationResult.success) {
+                  SetLogStatus(true);
+                  AsyncStorage.setItem("isLoggedIn", "true");
+                  SetCanLoad(false);
+                  return true;
+                }
+              }
+            );
+          } else {
+            SetLogStatus(true);
+            AsyncStorage.setItem("isLoggedIn", "true");
+            SetCanLoad(false);
+            return true;
+          }
         } else {
           SetLogStatus(false);
           AsyncStorage.setItem("isLoggedIn", "false");
@@ -55,9 +69,22 @@ export default function TabLayout() {
       return false;
     }
   }
+  if (canLoad) {
+    checkLogStatus();
+  }
 
-  checkLogStatus();
+  subscribe("login", () => {
+    checkLogStatus();
+  });
 
+  subscribe("logout", () => {
+    checkLogStatus();
+  });
+  /*
+  while (logStatus === false) {
+    setTimeout(async () => checkLogStatus(), 1000);   
+  }
+*/
   if (logStatus) {
     return (
       <Tabs
@@ -67,11 +94,10 @@ export default function TabLayout() {
           tabBarShowLabel: true,
           tabBarInactiveTintColor: "gray",
           tabBarLabelPosition: "beside-icon",
-        
+
           tabBarItemStyle: {
             backgroundColor:
               colorScheme === "light" ? "rgb(226 232 240)" : "rgb(9 9 11)",
-
           },
           tabBarStyle: {
             backgroundColor:
@@ -81,15 +107,13 @@ export default function TabLayout() {
           },
         }}
       >
-
         <Tabs.Screen
           name="players"
           options={{
             tabBarLabel: () => null,
             tabBarItemStyle: {
-              marginTop: 3,
+              margin: 4,
               borderRadius: 100,
-              marginHorizontal: 3
             },
             tabBarActiveBackgroundColor: "#383838",
             tabBarIcon: ({ color, focused }) => (
@@ -105,7 +129,7 @@ export default function TabLayout() {
             ),
           }}
         />
-                <Tabs.Screen
+        <Tabs.Screen
           name="index"
           options={{
             title: "Home",
@@ -113,24 +137,22 @@ export default function TabLayout() {
             tabBarLabelStyle: {
               fontSize: 16,
               fontWeight: "bold",
-              marginTop: 6,
               color:
-                colorScheme === "light" ? "rgb(254, 255, 254)" : "rgb(9 9 11);",
+                colorScheme === "light" ? "rgb(9 9 11);" : "rgb(254, 255, 254)",
             },
             tabBarItemStyle: {
-              backgroundColor:
-                colorScheme === "light" ? "rgb(9 9 11)" : "rgb(254, 255, 254)",
               borderRadius: 20,
-              marginTop: 3,
-              marginHorizontal: 3
+              margin: 4,
             },
+            tabBarActiveBackgroundColor: "#383838",
+
             tabBarIcon: ({ color, focused }) => (
               <Feather
                 name="home"
                 color={
                   colorScheme === "light"
-                    ? "rgb(254, 255, 254)"
-                    : "rgb(9 9 11);"
+                    ? "rgb(9 9 11);"
+                    : "rgb(254, 255, 254)"
                 }
                 size={24}
               />
@@ -142,9 +164,8 @@ export default function TabLayout() {
           options={{
             tabBarLabel: () => null,
             tabBarItemStyle: {
-              marginTop: 3,
               borderRadius: 100,
-              marginHorizontal: 3
+              margin: 4,
             },
             tabBarActiveBackgroundColor: "#383838",
             tabBarIcon: ({ color, focused }) => (
